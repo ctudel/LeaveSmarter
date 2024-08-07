@@ -1,6 +1,7 @@
 //++++++++++++++
 // MAP FUNCTIONS
 //++++++++++++++
+
 let token = 'pk.eyJ1IjoiY3R1ZGVsIiwiYSI6ImNsd2hkMWl4djA3cTAya29hYmFtZjcxajIifQ.2Ugfx9Y20dpgJgMaFyn5kw';
 let marker, circle, zoomed, routingControl;
 
@@ -29,7 +30,6 @@ let reverseGeocode = async (lat, lng) => {
         .then(async response => await response.json())
         .then(async data => {
             const address = data.display_name;
-            await new Promise(resolve => setTimeout(resolve, 1000));
             return address.split(',')[1]; // Use only the first part of the display name as the relative name
         })
         .catch(error => {
@@ -160,15 +160,18 @@ let geocode = async (location) => {
 let getNewLocation = async (address, id) => {
     const location = address;
 
-    if (location === '' || location === ' ') {
+    if (location === '' || location === ' ') 
         removeMarker(id);
-        if (id = 'start') removeMarker('circle');
-    }
-
-    if (!location) return;
+    
+    if (!location) 
+        return;
 
     const locationCoordinates = await geocode(location);
-    if (!locationCoordinates) return;
+    if (!locationCoordinates) 
+        return;
+    
+    if (id = 'start') 
+        removeMarker('circle');
 
     placeMarker(id, locationCoordinates.lat, locationCoordinates.lon);
 
@@ -395,6 +398,16 @@ function notification(message) {
 // HTML ACTIONS
 //+++++++++++++
 
+/* Detect if a new location is entered and place marker */
+document.getElementById('start').addEventListener('change', async function() {
+    await getNewLocation(this.value, 'start');
+});
+
+document.getElementById('end').addEventListener('change', async function() {
+    await getNewLocation(this.value, 'end');
+});
+
+
 /* Routing between two points if the enter key is pressed */
 document.getElementById('start').addEventListener('keypress', async function(event) {
     if (event.key === 'Enter') {
@@ -415,16 +428,6 @@ document.getElementById('time').addEventListener('keypress', function(event) {
         planTravel();
     }
 });
-
-/* Detect if a new location is entered and place marker */
-document.getElementById('start').addEventListener('change', async function() {
-    await getNewLocation(this.value, 'start');
-});
-
-document.getElementById('end').addEventListener('change', async function() {
-    await getNewLocation(this.value, 'end');
-});
-
 
 
 
