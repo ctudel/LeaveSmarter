@@ -234,58 +234,129 @@ let planTravel = () => {
 
 /* Parse user input as 12hr formatted time */
 let parseTime = (timeString) => {
-    let regex = /^(\d{1,2}):(\d{2})(\w{2})$/i; // reg expression to match
-    let match = timeString.match(regex);
 
-    if (!match) {
-        regex = /^(\d{1,2})(\w{2})$/i;
-        match = timeString.match(regex);
+    let hours = undefined;
+    let mins = undefined;
+    let period = undefined;
 
-        if (!match) return null;
 
-        const hours = parseInt(match[1], 10);
-        const period = match[2].toUpperCase();
+    /* Regular expression to match with timeString */
 
-        return scanParsedTime(hours, period, null);
+    // full time format
+    let fullTime = /^(\d{1,2}):(\d{2})(\w{2})$/i; 
+    let fullTimeMatch = timeString.match(fullTime);
+
+    // hour and period format
+    let hrAndPeriod = /^(\d{1,2})(\w{2})$/i;
+    let hrAndPeriodMatch = timeString.match(hrAndPeriod);
+
+    // no period formats
+    let hrAndMin = /^(\d{1,2}):(\d{2})$/i; 
+    let hrAndMinMatch = timeString.match(hrAndMin);
+
+    let hr = /^(\d{1,2})$/i;
+    let hrMatch = timeString.match(hr);
+
+    if (!fullTimeMatch && !hrAndPeriodMatch && !hrAndMinMatch && !hrMatch) {
+        return null;
     }
 
-    const hours = parseInt(match[1], 10);
-    const minutes = parseInt(match[2], 10);
-    const period = match[3].toUpperCase();
+    if (fullTimeMatch) {
+        hours = parseInt(fullTimeMatch[1], 10);
+        mins = parseInt(fullTimeMatch[2], 10);
+        period = fullTimeMatch[3].toUpperCase();
 
-    return scanParsedTime(hours, minutes, period);
+        console.log("hours: "+hours);
+        console.log("mins: "+mins);
+        console.log("period: "+period);
+    } 
+
+    if (hrAndPeriodMatch) {
+        hours = parseInt(hrAndPeriodMatch[1], 10);
+        period = hrAndPeriodMatch[2].toUpperCase();
+    } 
+
+    if (hrAndMinMatch) {
+        hours = parseInt(hrAndMinMatch[1], 10);
+        mins = parseInt(hrAndMinMatch[2], 10);
+    } 
+
+    if (hrMatch) {
+        hours = parseInt(hrMatch[1], 10);
+    } 
+
+    return scanParsedTime(hours, mins, period); 
+
 }
 
 /* Scan and reformat the parsed user time input */
-let scanParsedTime = (hours, minsOrPeriod, period) => {
-    if ((period === null)) {
+let scanParsedTime = (hours, mins, period) => {
 
-        if (hours === 12) {
-            hours = minsOrPeriod === 'AM' ? 0 : 12; // param 2 is period
-        } else {
-            hours = minsOrPeriod === 'PM' ? hours + 12 : hours;
-        }
+    console.log('info from parseTime: '+hours+' '+mins+' '+period);
 
-        if (hours < 0 || hours > 23) {
+    if (!mins && !period) {
+
+        console.log('beginning first validation');
+
+        if (validateTime(hours) === false) { 
+            console.log('called first');
             return null;
         }
 
         return new Date(2000, 0, 1, hours, 0);
 
-    } else {
+    } else if (!mins) {
 
-        if (hours === 12) {
-            hours = period === 'AM' ? 0 : 12;
-        } else {
-            hours = period === 'PM' ? hours + 12 : hours;
-        }
+        // check midnight or noon 
+        hours = (period === 'AM' && hours === 12) ? 0 : hours;
 
-        if (hours < 0 || hours > 23 || minsOrPeriod < 0 || minsOrPeriod > 59) { // param 2 is minutes
+        // handle 12hr format conversion
+        hours = (period === 'PM' && hours !== 12) ? hours + 12 : hours;
+
+        console.log('beginning second validation');
+
+        if (validateTime(hours) === false) { 
+            console.log('called second');
             return null;
         }
 
-        return new Date(2000, 0, 1, hours, minsOrPeriod);
+        return new Date(2000, 0, 1, hours, 0);
 
+    }  else {
+
+        // check midnight or noon 
+        hours = (period === 'AM' && hours === 12) ? 0 : hours;
+
+        // handle 12hr format conversion
+        hours = (period === 'PM' && hours !== 12) ? hours + 12 : hours;
+
+        console.log('beginning third validation');
+
+        if (validateTime(hours, mins) === false) { // param 2 is minutes
+            console.log('called third');
+            return null;
+        }
+
+        return new Date(2000, 0, 1, hours, mins);
+
+    }
+}
+
+/* Validate hours and minutes */
+let validateTime = (hours, mins) => {
+
+    if (!mins) {
+        console.log("validating hours: "+hours+"...");
+        console.log(hours >= 0 && hours < 24);
+
+        return (hours >= 0 && hours < 24)
+
+    } else { 
+        console.log("validating hours: "+hours+"...");
+        console.log("validating mins: "+mins+"...");
+        console.log(hours >= 0 && hours < 24 && mins >= 0 && mins < 60);
+
+        return (hours >= 0 && hours < 24 && mins >= 0 && mins < 60);
     }
 }
 
