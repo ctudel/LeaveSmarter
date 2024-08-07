@@ -5,11 +5,14 @@
 let token = 'pk.eyJ1IjoiY3R1ZGVsIiwiYSI6ImNsd2hkMWl4djA3cTAya29hYmFtZjcxajIifQ.2Ugfx9Y20dpgJgMaFyn5kw';
 let marker, circle, zoomed, routingControl;
 
+/* Initialize map */
+let map = L.map('map').setView([43.618881, -116.215019], 13);
+let markers = {}; // Declare markers object
+
 /* Resets map interface */
 let resetMap = () => {
     if (routingControl) { // remove any routes on the map
         map.removeControl(routingControl);
-        removeMarker('circle');
     }
 
     if (!map.hasLayer(markers['start'])) { // handles markers['start'] exists, but not on the map
@@ -43,12 +46,6 @@ let success = async (pos) => {
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
     const accuracy = pos.coords.accuracy;
-
-    // Remove old markers if any
-    if (marker) {
-        map.removeLayer(marker);
-        map.removeLayer(circle);
-    }
 
     // Create a marker
     marker = L.marker([lat, lng]).addTo(map);
@@ -111,7 +108,7 @@ let placeMarkerAtCursor = async (e) => {
     const endInput = document.getElementById('end');
 
     // Validate start address does not exist
-    if (startInput.value === '' || startInput.value === ' ') {
+    if (startInput.value.trim() === '') {
         placeMarker('start', lat, lng);
 
         const address = await reverseGeocode(lat, lng);
@@ -158,24 +155,28 @@ let geocode = async (location) => {
 
 /* Place marker on a new location */
 let getNewLocation = async (address, id) => {
-    const location = address;
 
-    if (location === '' || location === ' ') 
+    console.log('getNewLocation info: '+address+' '+id);
+
+    if (address.trim() === '') {
+        console.log('removing marker');
         removeMarker(id);
-    
-    if (!location) 
+        resetMap();
         return;
-
-    const locationCoordinates = await geocode(location);
-    if (!locationCoordinates) 
-        return;
+    }
     
-    if (id = 'start') 
+    const locationCoordinates = await geocode(address);
+    
+    if (!locationCoordinates) {
+        showAlert('Invalid address, please try again.');
+        return;
+    }
+    
+    if (markers['circle']) {
         removeMarker('circle');
+    }
 
     placeMarker(id, locationCoordinates.lat, locationCoordinates.lon);
-
-    resetMap();
 }
 
 
@@ -227,12 +228,8 @@ let planTravel = () => {
         }
     });
 
-    // // Log the user's travel method to console
-    // console.log(routingControl.options.router.options.profile);
-
-    // Handle duplicate markers
-    map.removeLayer(markers['start']);
-    map.removeLayer(markers['end']);
+    /* Log the user's travel method to console */
+    console.log("Route for: "+routingControl.options.router.options.profile);
 }
 
 
@@ -398,14 +395,6 @@ function notification(message) {
 // HTML ACTIONS
 //+++++++++++++
 
-/* Detect if a new location is entered and place marker */
-document.getElementById('start').addEventListener('change', async function() {
-    await getNewLocation(this.value, 'start');
-});
-
-document.getElementById('end').addEventListener('change', async function() {
-    await getNewLocation(this.value, 'end');
-});
 
 
 /* Routing between two points if the enter key is pressed */
@@ -429,15 +418,21 @@ document.getElementById('time').addEventListener('keypress', function(event) {
     }
 });
 
+/* Detect if a new location is entered and place marker */
+document.getElementById('start').addEventListener('change', async function() {
+    await getNewLocation(this.value, 'start');
+});
+
+document.getElementById('end').addEventListener('change', async function() {
+    await getNewLocation(this.value, 'end');
+});
+
 
 
 //++++++++++++++
 // PROGRAM CALLS
 //++++++++++++++
 
-/* Initialize map */
-var map = L.map('map').setView([43.618881, -116.215019], 13);
-var markers = {}; // Declare markers object
 
 /* Import a visual for our map */
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
