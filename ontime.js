@@ -177,6 +177,7 @@ let getNewLocation = async (address, id) => {
     }
 
     placeMarker(id, locationCoordinates.lat, locationCoordinates.lon);
+    resetMap();
 }
 
 
