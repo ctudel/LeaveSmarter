@@ -191,7 +191,7 @@ let planTravel = () => {
 
     const arrivalTime = parseTime(arrivalTimeStr);  // parse user time input
     if (!arrivalTime) {
-        showAlert('Invalid arrival time format. Please use HH:mm(am/pm) format.');
+        showAlert('Invalid arrival time format. Please use HH:mm[am/pm] format.');
         return;
     }
 
@@ -218,8 +218,9 @@ let planTravel = () => {
             // Estimate time to leave for poignant arrival time
             const leaveTime = new Date(arrivalTime.getTime() - (travelTimeInSeconds * 1200));
             const leaveTimeFormatted = leaveTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+            const arrivalTimeFormatted = arrivalTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true});
 
-            notification(`You should leave at ${leaveTimeFormatted} to arrive at ${arrivalTimeStr}`);
+            notification(`You should leave at ${leaveTimeFormatted} to arrive at ${arrivalTimeFormatted}`);
         }
     });
 
@@ -295,6 +296,8 @@ let scanParsedTime = (hours, mins, period) => {
     console.log('info from parseTime: '+hours+' '+mins+' '+period);
 
     if (!mins && !period) {
+
+        hours = (hours === 12) ? 0 : hours;
 
         console.log('beginning first validation');
 
