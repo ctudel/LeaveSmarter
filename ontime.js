@@ -158,13 +158,17 @@ let getNewLocation = async (address, id) => {
 
     console.log('getNewLocation info: '+address+' '+id);
 
-    if (address.trim() === '') {
+    if (!address && markers[id]) {
         console.log('removing marker');
         removeMarker(id);
         resetMap();
         return;
-    }
-    
+
+    } else if (!address) {
+        showAlert('Please provide an address for your '+id+' location.');
+        return;
+    } 
+
     const locationCoordinates = await geocode(address);
     
     if (!locationCoordinates) {
@@ -183,8 +187,8 @@ let getNewLocation = async (address, id) => {
 
 /* Time estimation and routing logic between two points */
 let planTravel = () => {
-    resetMap(); // reset map if needed
-
+    
+    // Validate start, end, and time exist
     const start = markers['start'] ? markers['start'].getLatLng() : null;
     const end = markers['end'] ? markers['end'].getLatLng() : null;
     const arrivalTimeStr = document.getElementById('time').value.trim();
