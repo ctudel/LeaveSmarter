@@ -2,7 +2,7 @@
 
 /* Default class and id */
 .alert {
-    display: none;
+    display: block;
     position: fixed;
     top: 50%;
     left: 50%;
@@ -11,21 +11,33 @@
     background-color: #f44336;
     color: white;
     font-size: 24px;
-    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    z-index: 999;
+}
+
+.alert.show {
+    opacity: 1;
 }
 
 .notification {
-    display: none;
+    display: block;
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     padding: 15px;
     background-color: #1aff00;
-    color: rgb(0, 0, 0);
+    color: black;
     font-size: 24px;
-    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+    z-index: 999;
 }  
+
+.notification.show {
+    opacity: 1;
+}
 
 .inputs {
     display: flex;
@@ -146,6 +158,10 @@
 
     .inputs button:hover {
         background-color: #cdaa00; /* Sets the background color of the button on hover */
+    }
+
+    .inputs input::placeholder {
+        color: #BDBDBD;
     }
 
     @media screen and (max-width: 767px) {

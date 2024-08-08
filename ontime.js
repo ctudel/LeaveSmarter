@@ -370,11 +370,12 @@ function showAlert(message) {
     var alertBox = document.getElementById('alert');
     var alertText = document.getElementById('alert-text');
     alertText.textContent = message;
-    alertBox.style.display = 'block';
+
+    alertBox.classList.add('show');
   
     // Hide the alert after 3 seconds
-    setTimeout(function() {
-      alertBox.style.display = 'none';
+    setTimeout( () => {
+        alertBox.classList.remove('show');
     }, 3000);
   }
 
@@ -383,10 +384,12 @@ function notification(message) {
     var notificationBox = document.getElementById('notification');
     var notificationText = document.getElementById('notification-text');
     notificationText.textContent = message;
-    notificationBox.style.display = 'block';
 
-    setTimeout(function() {
-        notificationBox.style.display = 'none';
+    notificationBox.classList.add('show');
+
+    // Hide notification after 3 seconds
+    setTimeout( () => {
+        notificationBox.classList.remove('show');
     }, 3000)
 }
   
