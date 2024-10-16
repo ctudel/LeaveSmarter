@@ -6,8 +6,8 @@ it is too late! Plan your travel by leaving smarter. Simply plug in the time you
 location, and the application does the rest for you.
 
 ## Usage
-Note that the location name processing is limited to the map being used. If your location name, does not show,
-input the coordinates for your location and it should reflect properly on the map.
+Note that the location name processing is limited to the map being used. If your location name(s) show as invalid,
+input the address for your location --- use coordinates if the address has not been added to the map.
 
 The source code is simply here for those interested, but the link below provides this application ready-to-use.
 <https://leavesmarter.vercel.app>
