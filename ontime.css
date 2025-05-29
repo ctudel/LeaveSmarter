@@ -73,6 +73,31 @@
     background-color: #0056b3; /* Sets the background color of the button on hover */
 }
 
+.dropdown-list {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #ccc;
+  width: 250px; /* Adjust to match your input width */
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.dropdown-list .dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dropdown-list .dropdown-item.active,
+.dropdown-list .dropdown-item:hover {
+  background: #e6f0fa;
+}
+
+#start-locations {
+  display: block;
+}
+
 
 #map {
     width: 100%;
