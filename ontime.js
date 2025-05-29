@@ -419,37 +419,38 @@ let debounce = (func, timeout = 300) => {
 
 /* Generates a dropdown with auto-complete addresses */
 const searchForAddress = debounce(async (event, type) => {
-  const dropdown = document.getElementById(`${type}-dropdown`);
-  const input = document.getElementById(`${type}`); // start or end location text box
-  const query = event.target.value; // user query in text inputs
+  if (event.key !== 'Enter') {
+    const dropdown = document.getElementById(`${type}-dropdown`);
+    const input = document.getElementById(`${type}`); // start or end location text box
+    const query = event.target.value; // user query in text inputs
 
-  dropdown.innerHTML = ''; // clear dropdown
-  activeIndex = -1;
+    clearDropdown(dropdown);
+    activeIndex = -1;
 
-  // If empty query, do not render dropdown
-  if (query === '') {
-    dropdown.style.display = 'none';
-    return;
+    // If empty query, do not render dropdown
+    if (query === '') {
+      return;
+    }
+
+    const results = await provider.search({ query: event.target.value });
+    results.forEach((option) => {
+      const address = option.label;
+      // Create drop down item
+      const item = document.createElement('div');
+      item.className = 'dropdown-item';
+      item.textContent = address;
+      item.addEventListener('mousedown', () => selectItem(input, dropdown, address));
+      dropdown.appendChild(item);
+    });
+
+
+    // Position dropdown below input
+    const rect = input.getBoundingClientRect();
+    dropdown.style.top = (input.offsetTop + input.offsetHeight) + 'px';
+    dropdown.style.left = input.offsetLeft + 'px';
+    dropdown.style.width = input.offsetWidth + 'px';
+    dropdown.style.display = 'block';
   }
-
-  const results = await provider.search({ query: event.target.value });
-  results.forEach((option) => {
-    const address = option.label;
-    // Create drop down item
-    const item = document.createElement('div');
-    item.className = 'dropdown-item';
-    item.textContent = address;
-    item.addEventListener('mousedown', () => selectItem(input, dropdown, address));
-    dropdown.appendChild(item);
-  });
-
-
-  // Position dropdown below input
-  const rect = input.getBoundingClientRect();
-  dropdown.style.top = (input.offsetTop + input.offsetHeight) + 'px';
-  dropdown.style.left = input.offsetLeft + 'px';
-  dropdown.style.width = input.offsetWidth + 'px';
-  dropdown.style.display = 'block';
 
 }, 1000);
 
@@ -463,9 +464,14 @@ let updateActiveItem = (type) => {
 
 
 // Select one of the dropdown items
-function selectItem(input, dropdown, address) {
+let selectItem = (input, dropdown, address) => {
   input.value = address;
   dropdown.style.display = 'none';
+}
+
+let clearDropdown = (dropdown) => {
+  dropdown.style.display = 'none';
+  dropdown.innerHTML = '';
 }
 
 //+++++++++++++
@@ -493,7 +499,7 @@ document.getElementById('start').addEventListener('keydown', function(e) {
     activeIndex = (activeIndex - 1 + items.length) % items.length;
     updateActiveItem('start');
   } else if (e.key === 'Escape') {
-    dropdown.style.display = 'none';
+    clearDropdown(dropdown);
   }
 });
 
@@ -510,7 +516,7 @@ document.getElementById('end').addEventListener('keydown', function(e) {
     activeIndex = (activeIndex - 1 + items.length) % items.length;
     updateActiveItem('end');
   } else if (e.key === 'Escape') {
-    dropdown.style.display = 'none';
+    clearDropdown(dropdown);
   }
 });
 
@@ -525,13 +531,15 @@ document.getElementById('start').addEventListener('keypress', async (event) => {
     if (activeIndex >= 0) {
       console.log("Value:", event.target.value);
       selectItem(input, dropdown, items[activeIndex].innerHTML);
+    } else {
+      planTravel();
     }
 
     await getNewLocation(this.value, 'start');
-    planTravel();
-    dropdown.style.display = 'none';
+    clearDropdown(dropdown);
   }
 });
+
 
 document.getElementById('end').addEventListener('keypress', async (event) => {
   const dropdown = document.getElementById(`end-dropdown`);
@@ -542,11 +550,12 @@ document.getElementById('end').addEventListener('keypress', async (event) => {
     if (activeIndex >= 0) {
       console.log("Value:", event.target.value);
       selectItem(input, dropdown, items[activeIndex].innerHTML);
+    } else {
+      planTravel();
     }
 
     await getNewLocation(this.value, 'end');
-    planTravel();
-    dropdown.style.display = 'none';
+    clearDropdown(dropdown);
   }
 });
 
@@ -557,6 +566,22 @@ document.getElementById('time').addEventListener('keypress', (event) => {
   }
 });
 
+// Observe changes from scripting (not user input, i.e. autofill)
+let config = {
+  childList: true,      // Detect addition/removal of child elements
+  attributes: true,     // Detect attribute changes
+  subtree: true,        // Also observe all descendants
+  characterData: true   // Detect changes to text nodes
+};
+
+let observer = new MutationObserver(async () => {
+  await getNewLocation(this.value, 'end');
+});
+
+
+observer.observe(document.getElementById('start'), config);
+observer.observe(document.getElementById('end'), config);
+
 /* Detect if a new location is entered and place marker */
 document.getElementById('start').addEventListener('change', async function() {
   await getNewLocation(this.value, 'start');
@@ -565,6 +590,18 @@ document.getElementById('start').addEventListener('change', async function() {
 document.getElementById('end').addEventListener('change', async function() {
   await getNewLocation(this.value, 'end');
 });
+
+/* Clear autofill dropdowns */
+document.getElementById('start').addEventListener('blur', async () => {
+  const dropdown = document.getElementById(`start-dropdown`);
+  clearDropdown(dropdown);
+});
+
+document.getElementById('end').addEventListener('blur', async () => {
+  const dropdown = document.getElementById(`end-dropdown`);
+  clearDropdown(dropdown);
+});
+
 
 
 
