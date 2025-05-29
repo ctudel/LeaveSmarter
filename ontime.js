@@ -5,6 +5,7 @@
 
 // Address search provider
 const provider = new GeoSearch.OpenStreetMapProvider();
+let activeIndex = -1;
 
 let token = 'pk.eyJ1IjoiY3R1ZGVsIiwiYSI6ImNsd2hkMWl4djA3cTAya29hYmFtZjcxajIifQ.2Ugfx9Y20dpgJgMaFyn5kw';
 let marker, circle, zoomed, routingControl;
@@ -389,6 +390,7 @@ function showAlert(message) {
 }
 
 
+/* Time estimation notification */
 function notification(message) {
   var notificationBox = document.getElementById('notification');
   var notificationText = document.getElementById('notification-text');
@@ -402,6 +404,9 @@ function notification(message) {
   }, 3000)
 }
 
+
+
+/* Debounce function to delay calls when typing in a text box */
 let debounce = (func, timeout = 300) => {
   let timer;
   return (...args) => {
@@ -410,11 +415,15 @@ let debounce = (func, timeout = 300) => {
   };
 }
 
+
+
+/* Generates a dropdown with auto-complete addresses */
 const searchForAddress = debounce(async (event, type) => {
   const dropdown = document.getElementById(`${type}-dropdown`);
-  const input = document.getElementById(`${type}`)
-  const query = event.target.value;
-  dropdown.innerHTML = '';
+  const input = document.getElementById(`${type}`); // start or end location text box
+  const query = event.target.value; // user query in text inputs
+
+  dropdown.innerHTML = ''; // clear dropdown
   activeIndex = -1;
 
   // If empty query, do not render dropdown
@@ -444,17 +453,16 @@ const searchForAddress = debounce(async (event, type) => {
 
 }, 1000);
 
-
-
-let updateActiveItem = () => {
-  const items = dropdown.querySelectorAll('.dropdown-item');
+// Update the styling for a hovered item
+let updateActiveItem = (type) => {
+  const items = document.getElementById(`${type}-dropdown`).querySelectorAll('.dropdown-item');
   items.forEach((item, idx) => {
     item.classList.toggle('active', idx === activeIndex);
   });
 }
 
 
-
+// Select one of the dropdown items
 function selectItem(input, dropdown, address) {
   input.value = address;
   dropdown.style.display = 'none';
@@ -464,24 +472,84 @@ function selectItem(input, dropdown, address) {
 // HTML ACTIONS
 //+++++++++++++
 
+/* Address auto-complete for start locations */
 document.getElementById('start').addEventListener('keydown', (e) => searchForAddress(e, 'start'));
 
+
+/* Address auto-complete for end locations */
 document.getElementById('end').addEventListener('keydown', (e) => searchForAddress(e, 'end'));
 
-/* Routing between two points if the enter key is pressed */
+
+/* Adjust auto-complete item selected with arrow keys */
+document.getElementById('start').addEventListener('keydown', function(e) {
+  const dropdown = document.getElementById(`start-dropdown`);
+  if (dropdown.style.display === 'none') return;
+  const items = dropdown.querySelectorAll('.dropdown-item');
+
+  if (e.key === 'ArrowDown') {
+    activeIndex = (activeIndex + 1) % items.length;
+    updateActiveItem('start');
+  } else if (e.key === 'ArrowUp') {
+    activeIndex = (activeIndex - 1 + items.length) % items.length;
+    updateActiveItem('start');
+  } else if (e.key === 'Escape') {
+    dropdown.style.display = 'none';
+  }
+});
+
+
+document.getElementById('end').addEventListener('keydown', function(e) {
+  const dropdown = document.getElementById(`end-dropdown`);
+  if (dropdown.style.display === 'none') return;
+  const items = dropdown.querySelectorAll('.dropdown-item');
+
+  if (e.key === 'ArrowDown') {
+    activeIndex = (activeIndex + 1) % items.length;
+    updateActiveItem('end');
+  } else if (e.key === 'ArrowUp') {
+    activeIndex = (activeIndex - 1 + items.length) % items.length;
+    updateActiveItem('end');
+  } else if (e.key === 'Escape') {
+    dropdown.style.display = 'none';
+  }
+});
+
+
+/* Routing between two points if the enter key is pressed (in start input) */
 document.getElementById('start').addEventListener('keypress', async (event) => {
+  const dropdown = document.getElementById(`start-dropdown`);
+  const input = document.getElementById('start');
+
   if (event.key === 'Enter') {
+    const items = dropdown.querySelectorAll('.dropdown-item');
+    if (activeIndex >= 0) {
+      console.log("Value:", event.target.value);
+      selectItem(input, dropdown, items[activeIndex].innerHTML);
+    }
+
     await getNewLocation(this.value, 'start');
     planTravel();
+    dropdown.style.display = 'none';
   }
 });
 
 document.getElementById('end').addEventListener('keypress', async (event) => {
+  const dropdown = document.getElementById(`end-dropdown`);
+  const input = document.getElementById('end');
+
   if (event.key === 'Enter') {
+    const items = dropdown.querySelectorAll('.dropdown-item');
+    if (activeIndex >= 0) {
+      console.log("Value:", event.target.value);
+      selectItem(input, dropdown, items[activeIndex].innerHTML);
+    }
+
     await getNewLocation(this.value, 'end');
     planTravel();
+    dropdown.style.display = 'none';
   }
 });
+
 
 document.getElementById('time').addEventListener('keypress', (event) => {
   if (event.key === 'Enter') {
