@@ -439,7 +439,8 @@ const searchForAddress = debounce(async (event, type) => {
       const item = document.createElement('div');
       item.className = 'dropdown-item';
       item.textContent = address;
-      item.addEventListener('mousedown', () => selectItem(input, dropdown, address));
+      item.addEventListener('mousedown', () => selectItem(input, dropdown, address, type));
+      item.addEventListener('touchend', () => selectItem(input, dropdown, address, type));
       dropdown.appendChild(item);
     });
 
@@ -464,9 +465,10 @@ let updateActiveItem = (type) => {
 
 
 // Select one of the dropdown items
-let selectItem = (input, dropdown, address) => {
+let selectItem = async (input, dropdown, address, type) => {
   input.value = address;
   dropdown.style.display = 'none';
+  await getNewLocation(address, type);
 }
 
 let clearDropdown = (dropdown) => {
@@ -566,7 +568,6 @@ document.getElementById('time').addEventListener('keypress', (event) => {
   }
 });
 
-// Observe changes from scripting (not user input, i.e. autofill)
 let config = {
   childList: true,      // Detect addition/removal of child elements
   attributes: true,     // Detect attribute changes
@@ -578,7 +579,7 @@ let observer = new MutationObserver(async () => {
   await getNewLocation(this.value, 'end');
 });
 
-
+// Observe input changes from scripting (not user input, i.e. autofill)
 observer.observe(document.getElementById('start'), config);
 observer.observe(document.getElementById('end'), config);
 
@@ -591,7 +592,7 @@ document.getElementById('end').addEventListener('change', async function() {
   await getNewLocation(this.value, 'end');
 });
 
-/* Clear autofill dropdowns */
+/* Clear autofill dropdowns when out of focus on input */
 document.getElementById('start').addEventListener('blur', async () => {
   const dropdown = document.getElementById(`start-dropdown`);
   clearDropdown(dropdown);
