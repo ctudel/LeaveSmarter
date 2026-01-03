@@ -1,0 +1,625 @@
+//++++++++++++++
+// MAP FUNCTIONS
+//++++++++++++++
+
+// Address search provider
+const provider = new GeoSearch.OpenStreetMapProvider();
+let activeIndex = -1;
+
+// Geocoding cache to avoid redundant API calls
+const geocodeCache = new Map();
+const reverseGeocodeCache = new Map();
+
+let token = '';
+let marker, circle, zoomed, routingControl;
+
+let map, markers = {}; // Declare map and markers
+
+/* Time estimation notification */
+function notification(message) {
+  var notificationBox = document.getElementById('notification');
+  var notificationText = document.getElementById('notification-text');
+  notificationText.textContent = message;
+
+  notificationBox.classList.add('show');
+
+  // Hide notification after 3 seconds
+  setTimeout(() => {
+    notificationBox.classList.remove('show');
+  }, 3000)
+}
+
+/* Debounce function to delay calls when typing in a text box */
+let debounce = (func, timeout = 300) => {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { func.apply(this, args); }, timeout);
+  };
+}
+
+let success = async (pos) => {
+  const lat = pos.coords.latitude;
+  const lng = pos.coords.longitude;
+  const accuracy = pos.coords.accuracy;
+
+  // Create a marker
+  marker = L.marker([lat, lng]).addTo(map);
+  circle = L.circle([lat, lng], { radius: accuracy % 500 }).addTo(map);
+
+  // Zoom to user's current location
+  if (!zoomed) {
+    // Move the map to the user's location
+    zoomed = map.fitBounds(circle.getBounds());
+
+    // Use reverse geocoding to get the address and set it as the default value of the start location text box
+    const address = await reverseGeocode(lat, lng);
+    if (address) {
+      document.getElementById('start').value = address;
+      markers['start'] = marker;
+      markers['circle'] = circle;
+    }
+  }
+}
+
+const getToken = async () => {
+  return await fetch('/get-token');
+}
+
+function initMap() {
+  map = L.map('map').setView([43.618881, -116.215019], 13);
+
+  /* Import a visual for our map */
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '@MapBox &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap'
+  }).addTo(map);
+
+  /* Change location upon user clicks */
+  map.on('click', placeMarkerAtCursor);
+
+  // Get user's current location and create new marker with it in the map's view
+  navigator.geolocation.getCurrentPosition(async function(pos) {
+    var lat = pos.coords.latitude;
+    var lng = pos.coords.longitude;
+    map.setView([lat, lng], 13);
+
+    // Call success function to place marker and set default start location to user's current location
+    await success(pos);
+  }, function(err) {
+    if (err.code === err.PERMISSION_DENIED) {
+      showAlert("Error: Location access was denied!");
+    } else if (err.code === err.TIMEOUT) {
+      showAlert("Error: Location request timed out. Using default view.");
+    } else {
+      showAlert("Error: cannot retrieve current location");
+    }
+  }, { timeout: 5000, enableHighAccuracy: false });
+}
+
+/* Resets map interface */
+let resetMap = () => {
+  if (routingControl) { // remove any routes on the map
+    map.removeControl(routingControl);
+  }
+
+  if (!map.hasLayer(markers['start'])) { // handles markers['start'] exists, but not on the map
+    markers['start'].addTo(map);
+  }
+
+  if (!map.hasLayer(markers['end'])) { // handles markers['end'] exists, but not on the map
+    markers['end'].addTo(map);
+  }
+
+}
+
+/* Retrieves the coordinates given an address */
+let geocode = async (location) => {
+  const url = `https://nominatim.openstreetmap.org/search?format=json&q=${location}`;
+
+  try { // attempt to fetch location
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.length === 0) {
+      console.error('No results found');
+      return null;
+    }
+
+    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) }; // parse coords
+
+  } catch (error) {
+    console.error('Error fetching geocoding data:', error);
+    return null;
+  }
+}
+
+let placeMarkerAtCursor = async (e) => {
+  const lat = e.latlng.lat;
+  const lng = e.latlng.lng;
+  const startInput = document.getElementById('start');
+  const endInput = document.getElementById('end');
+
+  // Validate start address does not exist
+  if (startInput.value.trim() === '') {
+    placeMarker('start', lat, lng);
+
+    const address = await reverseGeocode(lat, lng);
+    if (address) {
+      startInput.value = address;
+      resetMap();
+    }
+
+    // Validate end target address does not exist
+  } else {
+    placeMarker('end', lat, lng);
+
+    const address = await reverseGeocode(lat, lng);
+    if (address) {
+      endInput.value = address;
+      resetMap();
+    }
+
+  }
+}
+
+let placeMarker = (type, lat, lng) => {
+
+  // Remove old markers if any
+  if (markers[type]) {
+    map.removeLayer(markers[type]);
+    delete markers[type];
+  }
+
+  // Create a marker
+  markers[type] = L.marker([lat, lng]).addTo(map);
+
+  // Set the view to include both markers
+  map.fitBounds([
+    markers['start'] ? markers['start'].getLatLng() : markers['end'].getLatLng(),
+    markers['end'] ? markers['end'].getLatLng() : markers['start'].getLatLng()
+  ]);
+}
+
+let removeMarker = (type) => {
+  if (markers[type]) {
+    map.removeLayer(markers[type]);
+    delete markers[type];
+  }
+}
+
+let getNewLocation = async (address, id) => {
+  if (!address && markers[id]) {
+    removeMarker(id);
+    resetMap();
+    return;
+
+  } else if (!address) {
+    showAlert('Please provide an address for your ' + id + ' location.');
+    return;
+  }
+
+  const locationCoordinates = await geocode(address);
+
+  if (!locationCoordinates) {
+    showAlert('Invalid address, please try again.');
+    return;
+  }
+
+  if (markers['circle']) {
+    removeMarker('circle');
+  }
+
+  placeMarker(id, locationCoordinates.lat, locationCoordinates.lon);
+  resetMap();
+}
+
+/* Finds an address based on latitude and longtitude */
+let reverseGeocode = async (lat, lng) => {
+  const key = `${lat},${lng}`;
+  // Check cache first
+  if (reverseGeocodeCache.has(key)) {
+    return reverseGeocodeCache.get(key);
+  }
+
+  const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    const address = data.display_name;
+    const result = address ? address.split(',')[1] : null; // Use only the first part of the display name as the relative name
+    // Cache the result if valid
+    if (result) {
+      reverseGeocodeCache.set(key, result);
+    }
+    return result;
+  } catch (error) {
+    console.error('Error fetching reverse geocoding data:', error);
+    return null;
+  }
+};
+
+
+/* Generates a dropdown with auto-complete addresses */
+const searchForAddress = debounce(async (event, type) => {
+  if (event.key !== 'Enter') {
+    const dropdown = document.getElementById(`${type}-dropdown`);
+    const input = document.getElementById(`${type}`); // start or end location text box
+    const query = event.target.value; // user query in text inputs
+
+    clearDropdown(dropdown);
+    activeIndex = -1;
+
+    // If empty query, do not render dropdown
+    if (query === '') {
+      return;
+    }
+
+    const results = await provider.search({ query: event.target.value });
+    results.forEach((option) => {
+      const address = option.label;
+      // Create drop down item
+      const item = document.createElement('div');
+      item.className = 'dropdown-item';
+      item.textContent = address;
+      item.addEventListener('mousedown', () => selectItem(input, dropdown, address, type));
+      item.addEventListener('touchend', () => selectItem(input, dropdown, address, type));
+      dropdown.appendChild(item);
+    });
+
+
+    // Position dropdown below input
+    const rect = input.getBoundingClientRect();
+    dropdown.style.top = (input.offsetTop + input.offsetHeight) + 'px';
+    dropdown.style.left = input.offsetLeft + 'px';
+    dropdown.style.width = input.offsetWidth + 'px';
+    dropdown.style.display = 'block';
+  }
+
+}, 400);
+
+// Update the styling for a hovered item
+let updateActiveItem = (type) => {
+  const items = document.getElementById(`${type}-dropdown`).querySelectorAll('.dropdown-item');
+  items.forEach((item, idx) => {
+    item.classList.toggle('active', idx === activeIndex);
+  });
+}
+
+
+// Select one of the dropdown items
+let selectItem = async (input, dropdown, address, type) => {
+  input.value = address;
+  dropdown.style.display = 'none';
+  await getNewLocation(address, type);
+}
+
+let clearDropdown = (dropdown) => {
+  dropdown.style.display = 'none';
+  dropdown.innerHTML = '';
+}
+
+//+++++++++++++
+// TRAVEL PLANNING
+//+++++++++++++
+
+/* Parse user input as 12hr formatted time */
+let parseTime = (timeString) => {
+
+  let hours = undefined;
+  let mins = undefined;
+  let period = undefined;
+
+
+  /* Regular expression to match with timeString */
+
+  // full time format
+  let fullTime = /^(\d{1,2}):(\d{2})(\w{2})$/i;
+  let fullTimeMatch = timeString.match(fullTime);
+
+  // hour and period format
+  let hrAndPeriod = /^(\d{1,2})(\w{2})$/i;
+  let hrAndPeriodMatch = timeString.match(hrAndPeriod);
+
+  // no period formats
+  let hrAndMin = /^(\d{1,2}):(\d{2})$/i;
+  let hrAndMinMatch = timeString.match(hrAndMin);
+
+  let hr = /^(\d{1,2})$/i;
+  let hrMatch = timeString.match(hr);
+
+  if (!fullTimeMatch && !hrAndPeriodMatch && !hrAndMinMatch && !hrMatch) {
+    return null;
+  }
+
+  if (fullTimeMatch) {
+    hours = parseInt(fullTimeMatch[1], 10);
+    mins = parseInt(fullTimeMatch[2], 10);
+    period = fullTimeMatch[3].toUpperCase();
+  }
+
+  if (hrAndPeriodMatch) {
+    hours = parseInt(hrAndPeriodMatch[1], 10);
+    period = hrAndPeriodMatch[2].toUpperCase();
+  }
+
+  if (hrAndMinMatch) {
+    hours = parseInt(hrAndMinMatch[1], 10);
+    mins = parseInt(hrAndMinMatch[2], 10);
+  }
+
+  if (hrMatch) {
+    hours = parseInt(hrMatch[1], 10);
+  }
+
+  return scanParsedTime(hours, mins, period);
+
+}
+
+/* Scan and reformat the parsed user time input */
+let scanParsedTime = (hours, mins, period) => {
+  if (!mins && !period) {
+    hours = (hours === 12) ? 0 : hours;
+    if (validateTime(hours) === false) { return null; }
+    return new Date(2000, 0, 1, hours, 0);
+
+  } else if (!mins) {
+    // check midnight or noon 
+    hours = (period === 'AM' && hours === 12) ? 0 : hours;
+    // handle 12hr format conversion
+    hours = (period === 'PM' && hours !== 12) ? hours + 12 : hours;
+
+    if (validateTime(hours) === false) {
+      return null;
+    }
+
+    return new Date(2000, 0, 1, hours, 0);
+
+  } else {
+    // check midnight or noon 
+    hours = (period === 'AM' && hours === 12) ? 0 : hours;
+    // handle 12hr format conversion
+    hours = (period === 'PM' && hours !== 12) ? hours + 12 : hours;
+    if (validateTime(hours, mins) === false) { return null; } // param 2 is minutes
+    return new Date(2000, 0, 1, hours, mins);
+
+  }
+}
+
+/* Validate hours and minutes */
+let validateTime = (hours, mins) => {
+  if (!mins) {
+    return (hours >= 0 && hours < 24)
+  } else {
+    return (hours >= 0 && hours < 24 && mins >= 0 && mins < 60);
+  }
+}
+
+
+/* Create visual message for user */
+function showAlert(message) {
+  var alertBox = document.getElementById('alert');
+  var alertText = document.getElementById('alert-text');
+  alertText.textContent = message;
+
+  alertBox.classList.add('show');
+
+  // Hide the alert after 3 seconds
+  setTimeout(() => {
+    alertBox.classList.remove('show');
+  }, 3000);
+}
+
+/* Time estimation and routing logic between two points */
+let planTravel = () => {
+  resetMap(); /* reset map if needed */
+
+  // Validate start, end, and time exist
+  const start = markers['start'] ? markers['start'].getLatLng() : null;
+  const end = markers['end'] ? markers['end'].getLatLng() : null;
+  const arrivalTimeStr = document.getElementById('time').value.trim();
+
+  if (!start || !end || !arrivalTimeStr) {
+    showAlert('Please select a start, end location, and desired arrival time.');
+    return;
+  }
+
+  const arrivalTime = parseTime(arrivalTimeStr);  // parse user time input
+  if (!arrivalTime) {
+    showAlert('Invalid arrival time format. Please use HH:mm[am/pm] format.');
+    return;
+  }
+
+  // Create a route and add it to the map
+  try {
+    console.log('token', token);
+    routingControl = L.Routing.control({
+      waypoints: [
+        L.latLng(start.lat, start.lng), // start coords
+        L.latLng(end.lat, end.lng) // end coords
+      ],
+      router: new L.Routing.mapbox(token, {
+        profile: 'mapbox/driving'
+      }),
+      routeWhileDragging: true,
+      show: false
+    }).addTo(map);
+  } catch (error) {
+    console.error('Error initializing routing:', error);
+    showAlert('Unable to calculate route. Please check your locations.');
+    return;
+  }
+
+  // Start calculations
+  routingControl.on('routesfound', function(e) {
+    const routes = e.routes;
+    if (routes && routes.length > 0) {
+      const route = routes[0];
+      const travelTimeInSeconds = route.summary.totalTime;
+
+      // Estimate time to leave for poignant arrival time
+      const leaveTime = new Date(arrivalTime.getTime() - (travelTimeInSeconds * 1200));
+      const leaveTimeFormatted = leaveTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+      const arrivalTimeFormatted = arrivalTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+
+      notification(`You should leave at ${leaveTimeFormatted} to arrive at ${arrivalTimeFormatted}`);
+    }
+  });
+
+  /* Log the user's travel method to console */
+  // console.log("Route for: " + routingControl.options.router.options.profile);
+}
+
+//+++++++++++++
+// HTML ACTIONS
+//+++++++++++++
+
+/* Address auto-complete for start locations */
+document.getElementById('start').addEventListener('keydown', (e) => searchForAddress(e, 'start'));
+
+
+/* Address auto-complete for end locations */
+document.getElementById('end').addEventListener('keydown', (e) => searchForAddress(e, 'end'));
+
+
+/* Adjust auto-complete item selected with arrow keys */
+document.getElementById('start').addEventListener('keydown', function(e) {
+  const dropdown = document.getElementById(`start-dropdown`);
+  if (dropdown.style.display === 'none') return;
+  const items = dropdown.querySelectorAll('.dropdown-item');
+
+  if (e.key === 'ArrowDown') {
+    activeIndex = (activeIndex + 1) % items.length;
+    updateActiveItem('start');
+  } else if (e.key === 'ArrowUp') {
+    activeIndex = (activeIndex - 1 + items.length) % items.length;
+    updateActiveItem('start');
+  } else if (e.key === 'Escape') {
+    clearDropdown(dropdown);
+  }
+});
+
+
+document.getElementById('end').addEventListener('keydown', function(e) {
+  const dropdown = document.getElementById(`end-dropdown`);
+  if (dropdown.style.display === 'none') return;
+  const items = dropdown.querySelectorAll('.dropdown-item');
+
+  if (e.key === 'ArrowDown') {
+    activeIndex = (activeIndex + 1) % items.length;
+    updateActiveItem('end');
+  } else if (e.key === 'ArrowUp') {
+    activeIndex = (activeIndex - 1 + items.length) % items.length;
+    updateActiveItem('end');
+  } else if (e.key === 'Escape') {
+    clearDropdown(dropdown);
+  }
+});
+
+
+/* Routing between two points if the enter key is pressed (in start input) */
+document.getElementById('start').addEventListener('keypress', async (event) => {
+  const dropdown = document.getElementById(`start-dropdown`);
+  const input = document.getElementById('start');
+
+  if (event.key === 'Enter') {
+    const items = dropdown.querySelectorAll('.dropdown-item');
+    if (activeIndex >= 0) {
+      // console.log("Value:", event.target.value);
+      selectItem(input, dropdown, items[activeIndex].innerHTML);
+    } else {
+      planTravel();
+    }
+
+    await getNewLocation(this.value, 'start');
+    clearDropdown(dropdown);
+  }
+});
+
+
+document.getElementById('end').addEventListener('keypress', async (event) => {
+  const dropdown = document.getElementById(`end-dropdown`);
+  const input = document.getElementById('end');
+
+  if (event.key === 'Enter') {
+    const items = dropdown.querySelectorAll('.dropdown-item');
+    if (activeIndex >= 0) {
+      // console.log("Value:", event.target.value);
+      selectItem(input, dropdown, items[activeIndex].innerHTML);
+    } else {
+      planTravel();
+    }
+
+    await getNewLocation(this.value, 'end');
+    clearDropdown(dropdown);
+  }
+});
+
+
+document.getElementById('time').addEventListener('keypress', (event) => {
+  if (event.key === 'Enter') {
+    planTravel();
+  }
+});
+
+let config = {
+  childList: true,      // Detect addition/removal of child elements
+  attributes: true,     // Detect attribute changes
+  subtree: true,        // Also observe all descendants
+  characterData: true   // Detect changes to text nodes
+};
+
+let observer = new MutationObserver(async () => {
+  await getNewLocation(this.value, 'end');
+});
+
+// Observe input changes from scripting (not user input, i.e. autofill)
+observer.observe(document.getElementById('start'), config);
+observer.observe(document.getElementById('end'), config);
+
+/* Detect if a new location is entered and place marker */
+const debouncedGetNewLocationStart = debounce(async (value) => await getNewLocation(value, 'start'), 300);
+const debouncedGetNewLocationEnd = debounce(async (value) => await getNewLocation(value, 'end'), 300);
+
+document.getElementById('start').addEventListener('change', function() {
+  debouncedGetNewLocationStart(this.value);
+});
+
+document.getElementById('end').addEventListener('change', function() {
+  debouncedGetNewLocationEnd(this.value);
+});
+
+/* Clear autofill dropdowns when out of focus on input */
+document.getElementById('start').addEventListener('blur', async () => {
+  const dropdown = document.getElementById(`start-dropdown`);
+  clearDropdown(dropdown);
+});
+
+document.getElementById('end').addEventListener('blur', async () => {
+  const dropdown = document.getElementById(`end-dropdown`);
+  clearDropdown(dropdown);
+});
+
+
+
+
+//++++++++++++++
+// PROGRAM CALLS
+//++++++++++++++
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('getting token');
+  const response = await getToken();
+  if (response.ok) {
+    token = await response.text();
+    console.log('Successfully got token: ', token);
+  } else {
+    console.error('Failed to get token');
+  }
+});
+
+initMap();
+
+// Initialize map after DOM is ready
+// document.addEventListener('DOMContentLoaded', initMap);

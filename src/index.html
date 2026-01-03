@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Leave Smart</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- leaflet stylesheet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.0.0/dist/geosearch.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <!-- personal stylesheet -->
+  <link rel="stylesheet" href="./css/ontime.css">
+</head>
+
+<body>
+
+  <div id="alert" class="alert">
+    <span id="alert-text"></span>
+  </div>
+
+  <div id="notification" class="notification">
+    <span id="notification-text"></span>
+  </div>
+
+  <div class="main_page">
+    <div class="inputs">
+      <label for="start">Start Location:</label>
+      <input type="text" id="start" placeholder="Enter start location">
+      <div id="start-dropdown" class="dropdown-list" style="display:none;"></div>
+
+      <label for="end">End Location:</label>
+      <input type="text" id="end" placeholder="Enter end location">
+      <div id="end-dropdown" class="dropdown-list" style="display:none;"></div>
+
+      <label for="time">Arrival Time:</label>
+      <input type="text" id="time" placeholder="Enter arrival time">
+
+      <button onclick="planTravel()">Plan Travel</button>
+    </div>
+
+     <div id="map"></div>
+   </div>
+
+   <!-- leaflet javascript -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+  <script src="https://unpkg.com/esri-leaflet"></script>
+  <script src="https://unpkg.com/@mapbox/mapbox-sdk/umd/mapbox-sdk.min.js"></script>
+  <script src="https://unpkg.com/leaflet-geosearch@latest/dist/bundle.min.js"></script>
+  <script src="./js/ontime.js"></script>
+</body>
+
+</html>
