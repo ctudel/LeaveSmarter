@@ -63,7 +63,12 @@ let success = async (pos) => {
 }
 
 const getToken = async () => {
-  return await fetch('/get-token');
+  const response = await fetch('/api/token');
+  if (!response.ok) {
+    console.error('Failed to get token');
+    return;
+  }
+  return await response.json();
 }
 
 function initMap() {
@@ -610,9 +615,9 @@ document.getElementById('end').addEventListener('blur', async () => {
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('getting token');
-  const response = await getToken();
-  if (response.ok) {
-    token = await response.text();
+  const json = await getToken();
+  if (json) {
+    token = json.token;
     console.log('Successfully got token: ', token);
   } else {
     console.error('Failed to get token');
