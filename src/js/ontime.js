@@ -439,7 +439,6 @@ let planTravel = () => {
 
   // Create a route and add it to the map
   try {
-    console.log('token', token);
     routingControl = L.Routing.control({
       waypoints: [
         L.latLng(start.lat, start.lng), // start coords
@@ -615,11 +614,9 @@ document.getElementById('end').addEventListener('blur', async () => {
 //++++++++++++++
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('getting token');
   const json = await getToken();
   if (json) {
     token = json.token;
-    console.log('Successfully got token: ', token);
   } else {
     console.error('Failed to get token');
   }
