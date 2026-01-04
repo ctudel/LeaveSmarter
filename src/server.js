@@ -21,8 +21,8 @@ app.get('/get-token', async (req, res) => {
   // res.send(token);
 });
 
-app.get('/api/v2/token', async (req, res) => {
-  res.send(process.env.API_TOKEN);
+app.get('/api/token', async (req, res) => {
+  res.send(JSON.stringify({ "token": process.env.API_TOKEN }));
 });
 
 
