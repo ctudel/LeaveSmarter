@@ -65,6 +65,7 @@ let success = async (pos) => {
 const getToken = async () => {
   const response = await fetch('/api/token');
   if (!response.ok) {
+    console.dir(response);
     console.error('Failed to get token');
     return;
   }

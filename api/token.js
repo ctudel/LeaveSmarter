@@ -1,4 +1,7 @@
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const token = process.env.API_TOKEN;
-  res.status(200).json({ "token": token });
+  return new Response(JSON.stringify({ token }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
