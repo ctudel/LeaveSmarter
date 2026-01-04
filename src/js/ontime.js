@@ -10,7 +10,7 @@ let activeIndex = -1;
 const geocodeCache = new Map();
 const reverseGeocodeCache = new Map();
 
-let token = "pk.eyJ1IjoiY3R1ZGVsIiwiYSI6ImNsd2hkMWl4djA3cTAya29hYmFtZjcxajIifQ.2Ugfx9Y20dpgJgMaFyn5kw";
+let token = '';
 let marker, circle, zoomed, routingControl;
 
 let map, markers = {}; // Declare map and markers
@@ -614,16 +614,16 @@ document.getElementById('end').addEventListener('blur', async () => {
 // PROGRAM CALLS
 //++++++++++++++
 
-// document.addEventListener('DOMContentLoaded', async () => {
-//   console.log('getting token');
-//   const json = await getToken();
-//   if (json) {
-//     token = json.token;
-//     console.log('Successfully got token: ', token);
-//   } else {
-//     console.error('Failed to get token');
-//   }
-// });
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('getting token');
+  const json = await getToken();
+  if (json) {
+    token = json.token;
+    console.log('Successfully got token: ', token);
+  } else {
+    console.error('Failed to get token');
+  }
+});
 
 initMap();
 
